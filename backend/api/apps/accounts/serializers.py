@@ -6,7 +6,8 @@ from django.contrib.auth import authenticate
 from django.utils.translation import gettext_lazy as _
 from django.utils import timezone
 from datetime import timedelta
-from .models import User, UserDevice, PasswordResetToken
+from api.apps.devices.models import UserDevice
+from .models import User, PasswordResetToken
 from core.constants import USER_ROLES, PASSWORD_RESET_TOKEN_EXPIRY_HOURS
 
 

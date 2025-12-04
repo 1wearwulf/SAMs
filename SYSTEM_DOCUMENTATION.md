@@ -36,7 +36,7 @@ The Student Attendance Management System (SAMS) is a comprehensive solution desi
 ## Technology Stack
 
 ### Backend (Django REST Framework)
-- **Framework**: Django 4.2.7 with Django REST Framework
+- **Framework**: Django 4.2.13 with Django REST Framework
 - **Database**: PostgreSQL with Django ORM
 - **Authentication**: JWT (JSON Web Tokens) via djangorestframework-simplejwt
 - **Caching**: Redis for session and data caching
@@ -59,9 +59,9 @@ The Student Attendance Management System (SAMS) is a comprehensive solution desi
 - **Device Info**: device_info_plus for fingerprinting
 
 ### Web Dashboard (React)
-- **Framework**: React 18.2.0 with React Router DOM
+- **Framework**: React 19.2.1 with React Router DOM
 - **State Management**: Redux Toolkit with multiple slices
-- **UI Library**: Material-UI (MUI) 5.14.0
+- **UI Library**: Material-UI (MUI) 7.3.6
 - **HTTP Client**: Axios for API communication
 - **Charts**: Recharts for data visualization
 - **Forms**: Formik with Yup validation

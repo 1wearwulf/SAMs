@@ -1,17 +1,19 @@
-"""
-API URL Configuration for SAMS.
-"""
 from django.urls import path, include
-from rest_framework.routers import DefaultRouter
-from .apps.accounts import views as accounts_views
-
-router = DefaultRouter()
-router.register(r'users', accounts_views.UserViewSet, basename='user')
+from . import views
 
 urlpatterns = [
-    path('', include(router.urls)),
-    path('auth/', include('rest_framework.urls')),
-    # Add other URLs as they become available
+    # API root
+    path('', views.api_root, name='api-root'),
+    
+    # All authentication goes through accounts app
+    path('accounts/', include('api.apps.accounts.urls')),
+    
+    # Other API endpoints (commented out until fixed)
+    # path('attendance/', include('api.apps.attendance.urls')),
+    # path('courses/', include('api.apps.courses.urls')),
+    # path('notifications/', include('api.apps.notifications.urls')),
+    # path('analytics/', include('api.apps.analytics.urls')),
+    # path('devices/', include('api.apps.devices.urls')),
 ]
 
-print("Using minimal API URLs for now")
+app_name = 'api'

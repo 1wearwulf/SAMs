@@ -1,156 +1,303 @@
 import React, { useState, useEffect } from 'react';
-import './App.css';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import {
+  ThemeProvider,
+  createTheme,
+  CssBaseline,
+  Container,
+  Box,
+  Alert,
+  CircularProgress
+} from '@mui/material';
 
+// Import components
+import Login from './components/auth/Login';
+import Register from './components/auth/Register';
+import ForgotPassword from './components/auth/ForgotPassword';
+import Dashboard from './components/dashboard/Dashboard';
+import AdminPanel from './components/admin/AdminPanel';
+import StudentManagement from './components/admin/StudentManagement';
+import Attendance from './components/attendance/Attendance';
+import Analytics from './components/analytics/Analytics';
+import Layout from './components/layout/Layout';
+
+// Create theme
+const theme = createTheme({
+  palette: {
+    mode: 'light',
+    primary: {
+      main: '#1976d2',
+      light: '#42a5f5',
+      dark: '#1565c0',
+    },
+    secondary: {
+      main: '#9c27b0',
+      light: '#ba68c8',
+      dark: '#7b1fa2',
+    },
+    background: {
+      default: '#f5f5f5',
+      paper: '#ffffff',
+    },
+  },
+  typography: {
+    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    h1: {
+      fontWeight: 700,
+    },
+    h2: {
+      fontWeight: 600,
+    },
+  },
+  shape: {
+    borderRadius: 12,
+  },
+  components: {
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          textTransform: 'none',
+          fontWeight: 600,
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 16,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+        },
+      },
+    },
+  },
+});
+
+// Mock users for testing
+const MOCK_USERS = {
+  'admin@sams.edu': {
+    id: 1,
+    username: 'admin',
+    email: 'admin@sams.edu',
+    first_name: 'System',
+    last_name: 'Administrator',
+    role: 'admin',
+    password: 'admin123'
+  },
+  'lecturer@sams.edu': {
+    id: 2,
+    username: 'lecturer',
+    email: 'lecturer@sams.edu',
+    first_name: 'Dr. John',
+    last_name: 'Smith',
+    role: 'lecturer',
+    password: 'lecturer123'
+  },
+  'student@sams.edu': {
+    id: 3,
+    username: 'student',
+    email: 'student@sams.edu',
+    first_name: 'Alice',
+    last_name: 'Johnson',
+    role: 'student',
+    password: 'student123'
+  }
+};
+
+// Main App component
 function App() {
-  const [backendStatus, setBackendStatus] = useState('Checking...');
-  const [testUsers, setTestUsers] = useState([]);
+  const [backendStatus, setBackendStatus] = useState({
+    status: 'connected',
+    message: '✅ Using mock authentication for testing'
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Test backend connection
-    fetch('http://localhost:8000/api/')
-      .then(response => {
-        if (response.ok) {
-          return response.json();
-        }
-        throw new Error('Backend not responding');
-      })
-      .then(data => {
-        setBackendStatus('✅ Connected to Django API');
-      })
-      .catch(error => {
-        setBackendStatus(`❌ ${error.message}`);
-      });
+    checkAuthStatus();
 
-    // Check for test users
-    const users = [
-      { email: 'admin@example.com', password: 'admin123', role: 'Admin' },
-      { email: 'student@test.com', password: 'password123', role: 'Student' },
-      { email: 'lecturer@test.com', password: 'password123', role: 'Lecturer' }
-    ];
-    setTestUsers(users);
+    // Simulate backend check (commented out for now)
+    /*
+    checkBackendStatus();
+    */
   }, []);
 
-  const handleLoginTest = async (email, password) => {
+  const checkBackendStatus = async () => {
     try {
+      const response = await fetch('http://localhost:8000/api/');
+      if (response.ok) {
+        setBackendStatus({
+          status: 'connected',
+          message: '✅ Backend connected successfully'
+        });
+      } else {
+        setBackendStatus({
+          status: 'error',
+          message: '⚠️ Backend responded with error'
+        });
+      }
+    } catch (error) {
+      setBackendStatus({
+        status: 'error',
+        message: '❌ Cannot connect to backend. Using mock authentication for testing.'
+      });
+    }
+  };
+
+  const checkAuthStatus = () => {
+    const token = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+
+    if (token && storedUser) {
+      setIsAuthenticated(true);
+      setUser(JSON.parse(storedUser));
+    }
+    setLoading(false);
+  };
+
+  const handleLogin = async (email, password) => {
+    try {
+      // Mock authentication for testing
+      const user = MOCK_USERS[email];
+
+      if (user && user.password === password) {
+        // Remove password from user object before storing
+        const { password: _, ...userWithoutPassword } = user;
+
+        // Generate mock token
+        const mockToken = 'mock_jwt_token_' + Date.now();
+
+        localStorage.setItem('token', mockToken);
+        localStorage.setItem('user', JSON.stringify(userWithoutPassword));
+
+        setIsAuthenticated(true);
+        setUser(userWithoutPassword);
+
+        return {
+          success: true,
+          user: userWithoutPassword,
+          message: `Welcome ${user.first_name}!`
+        };
+      } else {
+        return {
+          success: false,
+          error: 'Invalid credentials. Try admin@sams.edu / admin123'
+        };
+      }
+
+      // Uncomment when backend is ready:
+      /*
       const response = await fetch('http://localhost:8000/api/accounts/login/', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username: email, password }),
       });
-      
+
       const data = await response.json();
-      
+
       if (response.ok) {
-        alert(`Login successful! Welcome ${data.user?.first_name || email}`);
-        // Store token
         localStorage.setItem('token', data.access);
+        localStorage.setItem('refreshToken', data.refresh);
         localStorage.setItem('user', JSON.stringify(data.user));
+        
+        setIsAuthenticated(true);
+        setUser(data.user);
+        return { success: true, user: data.user };
       } else {
-        alert(`Login failed: ${data.detail || 'Invalid credentials'}`);
+        return { success: false, error: data.detail || 'Invalid credentials' };
       }
+      */
     } catch (error) {
-      alert(`Login error: ${error.message}`);
+      return {
+        success: false,
+        error: 'Network error. Using mock authentication. Try admin@sams.edu / admin123'
+      };
     }
   };
 
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('refreshToken');
+    localStorage.removeItem('user');
+    setIsAuthenticated(false);
+    setUser(null);
+  };
+
+  if (loading) {
+    return (
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        <Box
+          display="flex"
+          justifyContent="center"
+          alignItems="center"
+          minHeight="100vh"
+          flexDirection="column"
+          gap={2}
+        >
+          <CircularProgress size={60} />
+          <Box textAlign="center">
+            <h2>SAMS Dashboard</h2>
+            <p>Loading your experience...</p>
+          </Box>
+        </Box>
+      </ThemeProvider>
+    );
+  }
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <h1>🎓 Student Attendance Management System</h1>
-        <p>A comprehensive solution for tracking student attendance with QR codes and geolocation</p>
-        
-        <div style={{ 
-          backgroundColor: '#282c34', 
-          padding: '20px', 
-          borderRadius: '10px',
-          margin: '20px 0',
-          textAlign: 'left',
-          maxWidth: '800px'
-        }}>
-          <h2>�� Development Status</h2>
-          
-          <div style={{ margin: '15px 0' }}>
-            <h3>Backend (Django)</h3>
-            <p>{backendStatus}</p>
-            <p>API: <a href="http://localhost:8000/api/" target="_blank" rel="noopener noreferrer" style={{ color: '#61dafb' }}>
-              http://localhost:8000/api/
-            </a></p>
-            <p>Admin: <a href="http://localhost:8000/admin/" target="_blank" rel="noopener noreferrer" style={{ color: '#61dafb' }}>
-              http://localhost:8000/admin/
-            </a></p>
-          </div>
-          
-          <div style={{ margin: '15px 0' }}>
-            <h3>Frontend (React)</h3>
-            <p>✅ Running at <a href="http://localhost:3000" style={{ color: '#61dafb' }}>http://localhost:3000</a></p>
-            <p>⏳ Connecting to backend API...</p>
-          </div>
-          
-          <div style={{ margin: '15px 0' }}>
-            <h3>📋 Test Users</h3>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-              {testUsers.map((user, index) => (
-                <div key={index} style={{ 
-                  backgroundColor: '#20232a', 
-                  padding: '10px', 
-                  borderRadius: '5px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <div>
-                    <strong>{user.role}</strong>
-                    <div>Email: {user.email}</div>
-                    <div>Password: {user.password}</div>
-                  </div>
-                  <button 
-                    onClick={() => handleLoginTest(user.email, user.password)}
-                    style={{
-                      padding: '8px 16px',
-                      backgroundColor: '#61dafb',
-                      color: '#20232a',
-                      border: 'none',
-                      borderRadius: '4px',
-                      cursor: 'pointer',
-                      fontWeight: 'bold'
-                    }}
-                  >
-                    Test Login
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        
-        <div style={{ marginTop: '30px' }}>
-          <h3>🔧 Quick Setup Commands</h3>
-          <pre style={{ 
-            backgroundColor: '#20232a', 
-            padding: '15px', 
-            borderRadius: '5px',
-            textAlign: 'left',
-            overflowX: 'auto'
-          }}>
-            <code>
-{`# Start Redis
-redis-server --daemonize yes
+    <ThemeProvider theme={theme}>
+      <CssBaseline />
+      <Router>
+        <Box sx={{ minHeight: '100vh', bgcolor: 'background.default' }}>
+          <Routes>
+            {/* Public routes */}
+            <Route path="/login" element={
+              isAuthenticated ? <Navigate to="/dashboard" /> :
+                <Login onLogin={handleLogin} backendStatus={backendStatus} />
+            } />
+            <Route path="/register" element={
+              isAuthenticated ? <Navigate to="/dashboard" /> : <Register />
+            } />
+            <Route path="/forgot-password" element={
+              isAuthenticated ? <Navigate to="/dashboard" /> : <ForgotPassword />
+            } />
 
-# Backend (new terminal)
-cd backend
-source venv/bin/activate
-python manage.py runserver
+            {/* Protected routes */}
+            <Route path="/" element={
+              isAuthenticated ? <Layout user={user} onLogout={handleLogout} /> : <Navigate to="/login" />
+            }>
+              <Route index element={<Navigate to="/dashboard" />} />
+              <Route path="dashboard" element={<Dashboard user={user} />} />
 
-# Frontend (new terminal)
-cd frontend
-npm start`}
-            </code>
-          </pre>
-        </div>
-      </header>
-    </div>
+              {/* Admin-only routes */}
+              {user?.role === 'admin' && (
+                <>
+                  <Route path="admin" element={<AdminPanel />} />
+                  <Route path="students" element={<StudentManagement />} />
+                </>
+              )}
+
+              {/* Lecturer routes */}
+              {(user?.role === 'lecturer' || user?.role === 'admin') && (
+                <>
+                  <Route path="attendance" element={<Attendance />} />
+                </>
+              )}
+
+              {/* Common routes */}
+              <Route path="analytics" element={<Analytics />} />
+              <Route path="courses" element={<Box p={3}><h2>Courses Management</h2></Box>} />
+            </Route>
+
+            {/* Catch all */}
+            <Route path="*" element={<Navigate to={isAuthenticated ? "/dashboard" : "/login"} />} />
+          </Routes>
+        </Box>
+      </Router>
+    </ThemeProvider>
   );
 }
 

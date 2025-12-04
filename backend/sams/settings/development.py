@@ -30,7 +30,8 @@ REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'] = {}
 # Debug Toolbar settings
 INTERNAL_IPS = [
     '127.0.0.1',
-]
+    
+    ]
 
 # CORS settings for development
 CORS_ALLOWED_ORIGINS = [
@@ -38,6 +39,7 @@ CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:3000',
     'http://localhost:3001',
     'http://127.0.0.1:3001',
+    
 ]
 
 # Logging for development

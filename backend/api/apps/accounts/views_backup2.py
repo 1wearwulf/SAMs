@@ -1,0 +1,224 @@
+"""
+Views for the accounts app.
+"""
+from rest_framework import status, generics, permissions
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.viewsets import ModelViewSet
+from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth import get_user_model, login, logout
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode, urlsafe_base64_decode
+from django.utils.encoding import force_bytes
+from django.utils import timezone
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.conf import settings
+
+from .models import User, UserDevice, PasswordResetToken
+from .serializers import (
+    UserSerializer, UserProfileSerializer, RegisterSerializer,
+    LoginSerializer, PasswordResetSerializer, PasswordResetConfirmSerializer,
+    UserDeviceSerializer, ChangePasswordSerializer
+)
+from api.permissions import IsOwnerOrLecturerOrAdmin
+from utils.device_fingerprint import generate_device_fingerprint, get_device_info
+from core.constants import PASSWORD_RESET_TOKEN_EXPIRY_HOURS
+
+
+User = get_user_model()
+
+
+class RegisterView(generics.CreateAPIView):
+    """
+    View for user registration.
+    """
+    queryset = User.objects.all()
+    permission_classes = (permissions.AllowAny,)
+    serializer_class = RegisterSerializer
+
+
+class UserProfileView(generics.RetrieveUpdateAPIView):
+    """
+    View for user profile.
+    """
+    serializer_class = UserProfileSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+    
+    def get_object(self):
+        return self.request.user
+
+
+class ChangePasswordView(generics.UpdateAPIView):
+    """
+    View for changing password.
+    """
+    serializer_class = ChangePasswordSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+    
+    def get_object(self):
+        return self.request.user
+    
+    def update(self, request, *args, **kwargs):
+        user = self.get_object()
+        serializer = self.get_serializer(data=request.data)
+        
+        if serializer.is_valid():
+            # Check old password
+            if not user.check_password(serializer.data.get("old_password")):
+                return Response(
+                    {"old_password": ["Wrong password."]}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Set new password
+            user.set_password(serializer.data.get("new_password"))
+            user.save()
+            
+            return Response(
+                {"message": "Password updated successfully"}, 
+                status=status.HTTP_200_OK
+            )
+        
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class PasswordResetView(generics.GenericAPIView):
+    """
+    View for password reset request.
+    """
+    serializer_class = PasswordResetSerializer
+    permission_classes = (permissions.AllowAny,)
+    
+    def post(self, request):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        email = serializer.validated_data['email']
+        
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            # Don't reveal if user exists for security
+            return Response(
+                {"message": "If this email exists in our system, you will receive a password reset link."},
+                status=status.HTTP_200_OK
+            )
+        
+        # Generate token
+        token = default_token_generator.make_token(user)
+        uid = urlsafe_base64_encode(force_bytes(user.pk))
+        
+        # In production, send email with reset link
+        reset_url = f"{settings.FRONTEND_URL}/reset-password/{uid}/{token}/"
+        
+        # For development, just return the token
+        return Response({
+            "message": "Password reset link generated",
+            "uid": uid,
+            "token": token,
+            "reset_url": reset_url  # In production, don't return this
+        }, status=status.HTTP_200_OK)
+
+
+class PasswordResetConfirmView(generics.GenericAPIView):
+    """
+    View for password reset confirmation.
+    """
+    serializer_class = PasswordResetConfirmSerializer
+    permission_classes = (permissions.AllowAny,)
+    
+    def post(self, request, uidb64=None, token=None):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        
+        try:
+            uid = urlsafe_base64_decode(uidb64).decode()
+            user = User.objects.get(pk=uid)
+        except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+            user = None
+        
+        if user is not None and default_token_generator.check_token(user, token):
+            user.set_password(serializer.validated_data['new_password'])
+            user.save()
+            return Response(
+                {"message": "Password has been reset successfully"},
+                status=status.HTTP_200_OK
+            )
+        
+        return Response(
+            {"error": "Invalid reset link"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+
+class LoginView(TokenObtainPairView):
+    """
+    View for user login (using JWT).
+    """
+    permission_classes = (permissions.AllowAny,)
+    
+    def post(self, request, *args, **kwargs):
+        response = super().post(request, *args, **kwargs)
+        
+        # Add custom response data
+        if response.status_code == 200:
+            # Get user info
+            from .serializers import UserSerializer
+            username = request.data.get('username')
+            if username:
+                try:
+                    user = User.objects.get(username=username)
+                    user_data = UserSerializer(user).data
+                    response.data.update({
+                        'user': user_data,
+                        'message': 'Login successful'
+                    })
+                except User.DoesNotExist:
+                    pass
+        
+        return response
+
+
+class LogoutView(APIView):
+    """
+    View for user logout.
+    """
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request):
+        # Blacklist refresh token if provided
+        refresh_token = request.data.get('refresh_token')
+        if refresh_token:
+            try:
+                token = RefreshToken(refresh_token)
+                token.blacklist()
+            except Exception:
+                pass
+
+        logout(request)
+        return Response({'message': 'Logout successful.'})
+
+
+# Simple UserViewSet if needed
+class UserViewSet(ModelViewSet):
+    """
+    Simple UserViewSet for profile management.
+    """
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get_queryset(self):
+        # Users can only see themselves
+        return User.objects.filter(id=self.request.user.id)
+    
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        """
+        Get current user profile.
+        """
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
