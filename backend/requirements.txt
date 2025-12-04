@@ -1,0 +1,49 @@
+# ===== CORE DEPENDENCIES =====
+# Backend - Django 4.2.x for compatibility with django-celery-beat and other packages
+django==4.2.13
+djangorestframework==3.14.0
+djangorestframework-simplejwt==5.2.2
+django-cors-headers==4.3.1
+drf-yasg==1.21.7
+psycopg2-binary==2.9.9
+redis==5.0.1
+
+# Database & Caching
+celery==5.3.4
+django-redis==5.4.0
+django-celery-beat==2.5.0
+
+# Security & Authentication
+pyjwt==2.8.0
+cryptography==42.0.5
+argon2-cffi==23.1.0
+
+# QR & Location
+qrcode==7.4.2
+pyotp==2.9.0
+geopy==2.4.1
+geocoder==1.38.1
+
+# Notifications
+firebase-admin==6.5.0
+fcm-django==2.3.1
+twilio==9.0.4
+
+# Utilities
+python-decouple==3.8
+python-dotenv==1.0.0
+pillow==10.2.0
+openpyxl==3.1.2
+reportlab==4.1.0
+
+# API Documentation
+django-rest-swagger==2.2.0
+
+# Testing
+pytest==8.0.2
+pytest-django==4.8.0
+pytest-cov==4.1.0
+factory-boy==3.3.0
+
+# Development Tools (optional - only install in development)
+django-debug-toolbar==4.3.0  # Compatible with Django 4.2.x

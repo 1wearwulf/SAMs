@@ -1,0 +1,290 @@
+"""
+Models for the courses app.
+"""
+from django.db import models
+from django.conf import settings
+from core.models import TimestampedModel
+from core.constants import COURSE_STATUSES, SESSION_STATUSES
+
+
+class Course(TimestampedModel):
+    """
+    Model for courses.
+    """
+    code = models.CharField(max_length=20, unique=True, help_text="Course code (e.g., CS101)")
+    name = models.CharField(max_length=200, help_text="Course name")
+    description = models.TextField(blank=True, help_text="Course description")
+    lecturer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='courses',
+        limit_choices_to={'role': 'lecturer'}
+    )
+    semester = models.CharField(max_length=20, help_text="Semester (e.g., Fall 2023)")
+    academic_year = models.CharField(max_length=20, help_text="Academic year")
+    status = models.CharField(
+        max_length=20,
+        choices=COURSE_STATUSES,
+        default="active"
+    )
+    max_students = models.PositiveIntegerField(default=50, help_text="Maximum number of students")
+    enrolled_students = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name='enrolled_courses',
+        limit_choices_to={'role': 'student'},
+        blank=True
+    )
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['code', 'academic_year']
+
+    def __str__(self):
+        return f"{self.code} - {self.name}"
+
+    @property
+    def enrolled_count(self):
+        return self.enrolled_students.count()
+
+    @property
+    def available_slots(self):
+        return max(0, self.max_students - self.enrolled_count)
+
+
+class ClassSession(TimestampedModel):
+    """
+    Model for class sessions within a course.
+    """
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='sessions'
+    )
+    title = models.CharField(max_length=200, help_text="Session title")
+    description = models.TextField(blank=True, help_text="Session description")
+    scheduled_date = models.DateField(help_text="Date of the session")
+    start_time = models.TimeField(help_text="Start time")
+    end_time = models.TimeField(help_text="End time")
+    location = models.CharField(max_length=200, help_text="Classroom location")
+    latitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text="Location latitude"
+    )
+    longitude = models.DecimalField(
+        max_digits=9,
+        decimal_places=6,
+        null=True,
+        blank=True,
+        help_text="Location longitude"
+    )
+    geofence_radius = models.PositiveIntegerField(
+        default=100,
+        help_text="Geofence radius in meters"
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=SESSION_STATUSES,
+        default=SESSION_STATUSES['SCHEDULED']
+    )
+    is_mandatory = models.BooleanField(default=True, help_text="Whether attendance is mandatory")
+
+    class Meta:
+        ordering = ['scheduled_date', 'start_time']
+        unique_together = ['course', 'scheduled_date', 'start_time']
+
+    def __str__(self):
+        return f"{self.course.code} - {self.title} ({self.scheduled_date})"
+
+    def clean(self):
+        from django.core.exceptions import ValidationError
+        from django.utils import timezone
+
+        # Validate coordinates
+        if (self.latitude is not None and self.longitude is None) or \
+           (self.latitude is None and self.longitude is not None):
+            raise ValidationError("Both latitude and longitude must be provided together.")
+
+        if self.latitude is not None and not (-90 <= self.latitude <= 90):
+            raise ValidationError("Latitude must be between -90 and 90.")
+        if self.longitude is not None and not (-180 <= self.longitude <= 180):
+            raise ValidationError("Longitude must be between -180 and 180.")
+
+        # Validate time
+        if self.start_time >= self.end_time:
+            raise ValidationError("End time must be after start time.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
+
+    @property
+    def duration_hours(self):
+        """Calculate session duration in hours."""
+        from datetime import datetime, time
+        start = datetime.combine(self.scheduled_date, self.start_time)
+        end = datetime.combine(self.scheduled_date, self.end_time)
+        duration = end - start
+        return duration.total_seconds() / 3600
+
+    @property
+    def is_active(self):
+        """Check if session is currently active."""
+        from django.utils import timezone
+        now = timezone.now()
+        session_start = timezone.datetime.combine(
+            self.scheduled_date,
+            self.start_time,
+            tzinfo=now.tzinfo
+        )
+        session_end = timezone.datetime.combine(
+            self.scheduled_date,
+            self.end_time,
+            tzinfo=now.tzinfo
+        )
+        return session_start <= now <= session_end
+
+    @property
+    def attendance_count(self):
+        """Get total attendance count for this session."""
+        return self.attendances.count()
+
+    @property
+    def attendance_rate(self):
+        """Calculate attendance rate for this session."""
+        total_enrolled = self.course.enrolled_students.count()
+        if total_enrolled == 0:
+            return 0
+        return (self.attendance_count / total_enrolled) * 100
+
+
+class CourseMaterial(TimestampedModel):
+    """
+    Model for course materials and resources.
+    """
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='materials'
+    )
+    title = models.CharField(max_length=200, help_text="Material title")
+    description = models.TextField(blank=True, help_text="Material description")
+    file = models.FileField(upload_to='course_materials/', null=True, blank=True)
+    file_url = models.URLField(blank=True, help_text="External file URL")
+    material_type = models.CharField(
+        max_length=20,
+        choices=[
+            ('document', 'Document'),
+            ('video', 'Video'),
+            ('link', 'Link'),
+            ('assignment', 'Assignment'),
+            ('other', 'Other'),
+        ],
+        default='document'
+    )
+    is_required = models.BooleanField(default=False, help_text="Whether material is required")
+    order = models.PositiveIntegerField(default=0, help_text="Display order")
+
+    class Meta:
+        ordering = ['order', 'created_at']
+
+    def __str__(self):
+        return f"{self.course.code} - {self.title}"
+
+    @property
+    def download_url(self):
+        """Get download URL for the material."""
+        if self.file:
+            return self.file.url
+        return self.file_url
+
+
+class CourseAnnouncement(TimestampedModel):
+    """
+    Model for course announcements.
+    """
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='announcements'
+    )
+    title = models.CharField(max_length=200, help_text="Announcement title")
+    content = models.TextField(help_text="Announcement content")
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='announcements'
+    )
+    is_pinned = models.BooleanField(default=False, help_text="Whether announcement is pinned")
+    is_urgent = models.BooleanField(default=False, help_text="Whether announcement is urgent")
+
+    class Meta:
+        ordering = ['-is_pinned', '-created_at']
+
+    def __str__(self):
+        return f"{self.course.code} - {self.title}"
+
+
+class EnrollmentRequest(TimestampedModel):
+    """
+    Model for course enrollment requests.
+    """
+    student = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name='enrollment_requests',
+        limit_choices_to={'role': 'student'}
+    )
+    course = models.ForeignKey(
+        Course,
+        on_delete=models.CASCADE,
+        related_name='enrollment_requests'
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('pending', 'Pending'),
+            ('approved', 'Approved'),
+            ('rejected', 'Rejected'),
+        ],
+        default='pending'
+    )
+    request_message = models.TextField(blank=True, help_text="Student's request message")
+    response_message = models.TextField(blank=True, help_text="Lecturer's response message")
+    reviewed_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='reviewed_requests'
+    )
+    reviewed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+        unique_together = ['student', 'course']
+
+    def __str__(self):
+        return f"{self.student.username} - {self.course.code} ({self.status})"
+
+    def approve(self, reviewer):
+        """Approve the enrollment request."""
+        from django.utils import timezone
+        self.status = 'approved'
+        self.reviewed_by = reviewer
+        self.reviewed_at = timezone.now()
+        self.save()
+
+        # Add student to course
+        self.course.enrolled_students.add(self.student)
+
+    def reject(self, reviewer, response_message=''):
+        """Reject the enrollment request."""
+        from django.utils import timezone
+        self.status = 'rejected'
+        self.response_message = response_message
+        self.reviewed_by = reviewer
+        self.reviewed_at = timezone.now()
+        self.save()
