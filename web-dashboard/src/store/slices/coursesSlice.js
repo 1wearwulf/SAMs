@@ -1,15 +1,27 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { api } from '../../services/api';
+import { coursesAPI } from '../../services/api';
 
 // Async thunks
 export const fetchCourses = createAsyncThunk(
     'courses/fetchCourses',
-    async (_, { rejectWithValue }) => {
+    async (params = {}, { rejectWithValue }) => {
         try {
-            const response = await api.get('/courses/');
-            return response.data;
+            const response = await coursesAPI.getCourses(params);
+            return response;
         } catch (error) {
-            return rejectWithValue(error.response?.data || 'Failed to fetch courses');
+            return rejectWithValue(error.message || 'Failed to fetch courses');
+        }
+    }
+);
+
+export const fetchCourse = createAsyncThunk(
+    'courses/fetchCourse',
+    async (id, { rejectWithValue }) => {
+        try {
+            const response = await coursesAPI.getCourse(id);
+            return response;
+        } catch (error) {
+            return rejectWithValue(error.message || 'Failed to fetch course');
         }
     }
 );
@@ -18,22 +30,22 @@ export const createCourse = createAsyncThunk(
     'courses/createCourse',
     async (courseData, { rejectWithValue }) => {
         try {
-            const response = await api.post('/courses/', courseData);
-            return response.data;
+            const response = await coursesAPI.createCourse(courseData);
+            return response;
         } catch (error) {
-            return rejectWithValue(error.response?.data || 'Failed to create course');
+            return rejectWithValue(error.message || 'Failed to create course');
         }
     }
 );
 
 export const updateCourse = createAsyncThunk(
     'courses/updateCourse',
-    async ({ id, courseData }, { rejectWithValue }) => {
+    async ({ id, data }, { rejectWithValue }) => {
         try {
-            const response = await api.put(`/courses/${id}/`, courseData);
-            return response.data;
+            const response = await coursesAPI.updateCourse(id, data);
+            return response;
         } catch (error) {
-            return rejectWithValue(error.response?.data || 'Failed to update course');
+            return rejectWithValue(error.message || 'Failed to update course');
         }
     }
 );
@@ -42,10 +54,10 @@ export const deleteCourse = createAsyncThunk(
     'courses/deleteCourse',
     async (id, { rejectWithValue }) => {
         try {
-            await api.delete(`/courses/${id}/`);
+            await coursesAPI.deleteCourse(id);
             return id;
         } catch (error) {
-            return rejectWithValue(error.response?.data || 'Failed to delete course');
+            return rejectWithValue(error.message || 'Failed to delete course');
         }
     }
 );
@@ -55,16 +67,28 @@ const coursesSlice = createSlice({
     name: 'courses',
     initialState: {
         courses: [],
+        currentCourse: null,
         loading: false,
         error: null,
-        selectedCourse: null,
+        filters: {
+            search: '',
+            status: '',
+            instructor: '',
+        },
     },
     reducers: {
         clearError: (state) => {
             state.error = null;
         },
-        setSelectedCourse: (state, action) => {
-            state.selectedCourse = action.payload;
+        setFilters: (state, action) => {
+            state.filters = { ...state.filters, ...action.payload };
+        },
+        clearFilters: (state) => {
+            state.filters = {
+                search: '',
+                status: '',
+                instructor: '',
+            };
         },
     },
     extraReducers: (builder) => {
@@ -79,6 +103,19 @@ const coursesSlice = createSlice({
                 state.courses = action.payload;
             })
             .addCase(fetchCourses.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
+            // Fetch single course
+            .addCase(fetchCourse.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(fetchCourse.fulfilled, (state, action) => {
+                state.loading = false;
+                state.currentCourse = action.payload;
+            })
+            .addCase(fetchCourse.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             })
@@ -127,5 +164,5 @@ const coursesSlice = createSlice({
     },
 });
 
-export const { clearError, setSelectedCourse } = coursesSlice.actions;
+export const { clearError, setFilters, clearFilters } = coursesSlice.actions;
 export default coursesSlice.reducer;

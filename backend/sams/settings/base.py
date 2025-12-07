@@ -253,3 +253,4 @@ os.makedirs(BASE_DIR / 'logs', exist_ok=True)
 
 # Manually ensure attendance app is included
 # Add this at the end if INSTALLED_APPS is defined elsewhere
+AUTH_USER_MODEL = 'accounts.User'

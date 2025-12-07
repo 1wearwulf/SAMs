@@ -6,7 +6,7 @@ export const fetchAnalytics = createAsyncThunk(
     'analytics/fetchAnalytics',
     async (params = {}, { rejectWithValue }) => {
         try {
-            const response = await api.get('/analytics/', { params });
+            const response = await api.get('/analytics/dashboard/', { params });
             return response.data;
         } catch (error) {
             return rejectWithValue(error.response?.data || 'Failed to fetch analytics');

@@ -1,20 +1,37 @@
 import React from 'react';
-import { StatusBar } from 'expo-status-bar';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { Provider as PaperProvider } from 'react-native-paper';
-import { Provider as ReduxProvider } from 'react-redux';
-import { store } from './src/store';
-import Navigation from './src/navigation';
+import { View, Text, StyleSheet } from 'react-native';
 
 export default function App() {
   return (
-    <ReduxProvider store={store}>
-      <PaperProvider>
-        <SafeAreaProvider>
-          <Navigation />
-          <StatusBar style="auto" />
-        </SafeAreaProvider>
-      </PaperProvider>
-    </ReduxProvider>
+    <View style={styles.container}>
+      <Text style={styles.text}>SAMS Mobile App</Text>
+      <Text style={styles.subtext}>QR Scanner with Login</Text>
+      <Text style={styles.status}>✅ App is working!</Text>
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#fff',
+    padding: 20,
+  },
+  text: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    marginBottom: 10,
+  },
+  subtext: {
+    fontSize: 18,
+    color: '#666',
+    marginBottom: 20,
+  },
+  status: {
+    fontSize: 16,
+    color: 'green',
+    marginTop: 20,
+  },
+});

@@ -1,15 +1,27 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
-import { api } from '../../services/api';
+import { studentsAPI } from '../../services/api';
 
 // Async thunks
 export const fetchStudents = createAsyncThunk(
     'students/fetchStudents',
     async (params = {}, { rejectWithValue }) => {
         try {
-            const response = await api.get('/students/', { params });
-            return response.data;
+            const response = await studentsAPI.getStudents(params);
+            return response;
         } catch (error) {
-            return rejectWithValue(error.response?.data || 'Failed to fetch students');
+            return rejectWithValue(error.message || 'Failed to fetch students');
+        }
+    }
+);
+
+export const fetchStudent = createAsyncThunk(
+    'students/fetchStudent',
+    async (id, { rejectWithValue }) => {
+        try {
+            const response = await studentsAPI.getStudent(id);
+            return response;
+        } catch (error) {
+            return rejectWithValue(error.message || 'Failed to fetch student');
         }
     }
 );
@@ -18,22 +30,22 @@ export const createStudent = createAsyncThunk(
     'students/createStudent',
     async (studentData, { rejectWithValue }) => {
         try {
-            const response = await api.post('/students/', studentData);
-            return response.data;
+            const response = await studentsAPI.createStudent(studentData);
+            return response;
         } catch (error) {
-            return rejectWithValue(error.response?.data || 'Failed to create student');
+            return rejectWithValue(error.message || 'Failed to create student');
         }
     }
 );
 
 export const updateStudent = createAsyncThunk(
     'students/updateStudent',
-    async ({ id, studentData }, { rejectWithValue }) => {
+    async ({ id, data }, { rejectWithValue }) => {
         try {
-            const response = await api.put(`/students/${id}/`, studentData);
-            return response.data;
+            const response = await studentsAPI.updateStudent(id, data);
+            return response;
         } catch (error) {
-            return rejectWithValue(error.response?.data || 'Failed to update student');
+            return rejectWithValue(error.message || 'Failed to update student');
         }
     }
 );
@@ -42,10 +54,10 @@ export const deleteStudent = createAsyncThunk(
     'students/deleteStudent',
     async (id, { rejectWithValue }) => {
         try {
-            await api.delete(`/students/${id}/`);
+            await studentsAPI.deleteStudent(id);
             return id;
         } catch (error) {
-            return rejectWithValue(error.response?.data || 'Failed to delete student');
+            return rejectWithValue(error.message || 'Failed to delete student');
         }
     }
 );
@@ -55,17 +67,28 @@ const studentsSlice = createSlice({
     name: 'students',
     initialState: {
         students: [],
+        currentStudent: null,
         loading: false,
         error: null,
-        selectedStudent: null,
-        totalCount: 0,
+        filters: {
+            search: '',
+            course: '',
+            status: '',
+        },
     },
     reducers: {
         clearError: (state) => {
             state.error = null;
         },
-        setSelectedStudent: (state, action) => {
-            state.selectedStudent = action.payload;
+        setFilters: (state, action) => {
+            state.filters = { ...state.filters, ...action.payload };
+        },
+        clearFilters: (state) => {
+            state.filters = {
+                search: '',
+                course: '',
+                status: '',
+            };
         },
     },
     extraReducers: (builder) => {
@@ -77,10 +100,22 @@ const studentsSlice = createSlice({
             })
             .addCase(fetchStudents.fulfilled, (state, action) => {
                 state.loading = false;
-                state.students = action.payload.results || action.payload;
-                state.totalCount = action.payload.count || action.payload.length;
+                state.students = action.payload;
             })
             .addCase(fetchStudents.rejected, (state, action) => {
+                state.loading = false;
+                state.error = action.payload;
+            })
+            // Fetch single student
+            .addCase(fetchStudent.pending, (state) => {
+                state.loading = true;
+                state.error = null;
+            })
+            .addCase(fetchStudent.fulfilled, (state, action) => {
+                state.loading = false;
+                state.currentStudent = action.payload;
+            })
+            .addCase(fetchStudent.rejected, (state, action) => {
                 state.loading = false;
                 state.error = action.payload;
             })
@@ -92,7 +127,6 @@ const studentsSlice = createSlice({
             .addCase(createStudent.fulfilled, (state, action) => {
                 state.loading = false;
                 state.students.push(action.payload);
-                state.totalCount += 1;
             })
             .addCase(createStudent.rejected, (state, action) => {
                 state.loading = false;
@@ -122,7 +156,6 @@ const studentsSlice = createSlice({
             .addCase(deleteStudent.fulfilled, (state, action) => {
                 state.loading = false;
                 state.students = state.students.filter(student => student.id !== action.payload);
-                state.totalCount -= 1;
             })
             .addCase(deleteStudent.rejected, (state, action) => {
                 state.loading = false;
@@ -131,5 +164,5 @@ const studentsSlice = createSlice({
     },
 });
 
-export const { clearError, setSelectedStudent } = studentsSlice.actions;
+export const { clearError, setFilters, clearFilters } = studentsSlice.actions;
 export default studentsSlice.reducer;

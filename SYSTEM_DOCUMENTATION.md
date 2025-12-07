@@ -11,7 +11,7 @@ The Student Attendance Management System (SAMS) is a comprehensive solution desi
 ```
 ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
 │   Web Dashboard │    │   Mobile App    │    │     Backend     │
-│   (React)       │◄──►│   (Flutter)     │◄──►│   (Django)      │
+│   (React)       │◄──►│ (Expo/React Native)│◄──►│   (Django)      │
 │                 │    │                 │    │                 │
 │ - Admin UI      │    │ - QR Scanning   │    │ - REST API      │
 │ - Analytics     │    │ - Geolocation   │    │ - Database      │
@@ -48,26 +48,35 @@ The Student Attendance Management System (SAMS) is a comprehensive solution desi
   - django-celery-beat: Periodic task scheduling
   - python-decouple: Environment variable management
 
-### Mobile App (Flutter)
-- **Framework**: Flutter 3.0+ with Dart 2.19+
-- **State Management**: Provider pattern
-- **Networking**: HTTP with Dio library
-- **Local Storage**: SharedPreferences
-- **QR Scanning**: qr_code_scanner package
-- **Location Services**: geolocator package
+### Mobile App (Expo/React Native)
+- **Framework**: Expo ~54.0.26 with React Native 0.81.5
+- **State Management**: Redux Toolkit and Zustand
+- **Navigation**: Expo Router ~6.0.16
+- **Networking**: Axios for HTTP requests
+- **Local Storage**: Expo Secure Store
+- **QR Scanning**: Expo Barcode Scanner
+- **Location Services**: Expo Location
 - **Push Notifications**: Firebase Cloud Messaging
-- **Device Info**: device_info_plus for fingerprinting
+- **Device Info**: Expo Device for fingerprinting
+- **UI Components**: React Native Paper and Expo Vector Icons
 
 ### Web Dashboard (React)
-- **Framework**: React 19.2.1 with React Router DOM
-- **State Management**: Redux Toolkit with multiple slices
-- **UI Library**: Material-UI (MUI) 7.3.6
-- **HTTP Client**: Axios for API communication
-- **Charts**: Recharts for data visualization
-- **Forms**: Formik with Yup validation
-- **Styling**: Tailwind CSS with Emotion
-- **QR Generation**: react-qr-code
-- **Date Handling**: Moment.js and react-datepicker
+- **Framework**: React 18.2.0 with React Router DOM 6.14.2
+- **State Management**: Redux Toolkit 1.9.5 with multiple slices
+- **UI Library**: Material-UI (MUI) 5.14.0
+- **HTTP Client**: Axios 1.4.0 for API communication
+- **Charts**: Recharts 2.8.0 for data visualization
+- **Forms**: Formik 2.4.1 with Yup 1.2.0 validation
+- **Styling**: Tailwind CSS 3.3.3
+- **QR Generation**: react-qr-code 2.0.10
+- **Date Handling**: Moment.js 2.29.4 and react-datepicker 4.16.0
+- **Additional Libraries**: React Table 7.8.0, React Toastify 9.1.3
+
+### Alternative Frontend (React)
+- **Framework**: React 19.2.1 with React Router DOM 7.10.0
+- **UI Library**: Material-UI (MUI) 6.5.0 with Emotion
+- **HTTP Client**: Axios 1.13.2 for API communication
+- **Testing**: Jest and React Testing Library
 
 ## Project Structure
 
@@ -412,7 +421,7 @@ PUT  /api/notifications/{id}/read/    # Mark as read
 ## Development Workflow
 
 ### Code Quality
-- **Linting**: ESLint for JavaScript, Flake8 for Python, Flutter analyze for Dart
+- **Linting**: ESLint for JavaScript/TypeScript, Flake8 for Python, Expo lint for React Native
 - **Testing**: Unit tests, integration tests, and end-to-end testing
 - **Code Review**: Pull request reviews with automated checks
 - **Documentation**: Auto-generated API docs and comprehensive READMEs

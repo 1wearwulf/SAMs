@@ -8,7 +8,7 @@ from .models import (
 )
 
 
-class DeviceSerializer(serializers.ModelSerializer):
+class UserDeviceSerializer(serializers.ModelSerializer):
     """
     Serializer for Device model.
     """

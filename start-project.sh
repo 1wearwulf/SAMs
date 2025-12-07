@@ -88,9 +88,9 @@ done
 echo ""
 echo -e "${BLUE}Starting services...${NC}"
 
-# 1. Start Backend (FastAPI)
+# 1. Start Backend (Django)
 if [ -d "backend" ]; then
-    start_service "backend" "backend" "python3 -m uvicorn main:app --reload --host 0.0.0.0 --port 8000"
+    start_service "backend" "backend" "python3 manage.py runserver 0.0.0.0:8000"
 else
     echo -e "${YELLOW}Backend directory not found, skipping...${NC}"
 fi
@@ -100,6 +100,13 @@ if [ -d "frontend" ]; then
     start_service "frontend" "frontend" "npm run dev"
 else
     echo -e "${YELLOW}Frontend directory not found, skipping...${NC}"
+fi
+
+# 3. Start Web Dashboard (React)
+if [ -d "web-dashboard" ]; then
+    start_service "web-dashboard" "web-dashboard" "npm start"
+else
+    echo -e "${YELLOW}Web Dashboard directory not found, skipping...${NC}"
 fi
 
 # 3. Start Mobile (React Native/Expo)
@@ -140,6 +147,7 @@ echo -e "${BLUE}Access URLs:${NC}"
 echo -e "Backend API:    ${GREEN}http://localhost:8000${NC}"
 echo -e "Backend Docs:   ${GREEN}http://localhost:8000/docs${NC}"
 echo -e "Frontend:       ${GREEN}http://localhost:3000${NC}"
+echo -e "Web Dashboard:  ${GREEN}http://localhost:3001${NC}"
 echo -e "Mobile Expo:    ${GREEN}http://localhost:8081${NC}"
 echo -e "Mobile QR Code: ${YELLOW}Check terminal where mobile service started${NC}"
 echo ""
@@ -148,9 +156,10 @@ echo -e "1. Press ${RED}Ctrl+C${NC} in this terminal"
 echo -e "2. Or run: ${YELLOW}./stop-project.sh${NC}"
 echo ""
 echo -e "${BLUE}Log files:${NC}"
-echo -e "Backend logs:  ${YELLOW}tail -f backend/backend.log${NC}"
-echo -e "Frontend logs: ${YELLOW}tail -f frontend/frontend.log${NC}"
-echo -e "Mobile logs:   ${YELLOW}tail -f mobile/mobile.log${NC}"
+echo -e "Backend logs:      ${YELLOW}tail -f backend/backend.log${NC}"
+echo -e "Frontend logs:     ${YELLOW}tail -f frontend/frontend.log${NC}"
+echo -e "Web Dashboard logs:${YELLOW}tail -f web-dashboard/web-dashboard.log${NC}"
+echo -e "Mobile logs:       ${YELLOW}tail -f mobile/mobile.log${NC}"
 echo ""
 
 # Keep script running

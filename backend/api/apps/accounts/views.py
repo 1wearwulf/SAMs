@@ -204,11 +204,11 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
     """
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticated]
-    
+
     def get_queryset(self):
         """Return users based on the requesting user's role"""
         user = self.request.user
-        
+
         if user.role == 'admin':
             # Admins can see all users
             return User.objects.all()
@@ -218,9 +218,49 @@ class UserViewSet(viewsets.ReadOnlyModelViewSet):
         else:
             # Students can only see themselves
             return User.objects.filter(id=user.id)
-    
+
     @action(detail=False, methods=['get'])
     def me(self, request):
         """Get current user's profile"""
+        serializer = self.get_serializer(request.user)
+        return Response(serializer.data)
+
+
+class StudentViewSet(viewsets.ModelViewSet):
+    """
+    ViewSet for managing student instances.
+    Provides full CRUD operations for students.
+    """
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticated, IsOwnerOrLecturerOrAdmin]
+
+    def get_queryset(self):
+        """Return students based on the requesting user's role"""
+        user = self.request.user
+
+        if user.role == 'admin':
+            # Admins can see all students
+            return User.objects.filter(role='student')
+        elif user.role == 'lecturer':
+            # Lecturers can see all students
+            return User.objects.filter(role='student')
+        else:
+            # Students can only see themselves if they are students
+            return User.objects.filter(id=user.id, role='student')
+
+    def get_permissions(self):
+        """
+        Override permissions for different actions.
+        """
+        if self.action in ['create', 'update', 'partial_update', 'destroy']:
+            # Only admins can create/update/delete students
+            return [permissions.IsAuthenticated(), permissions.IsAdminUser()]
+        return super().get_permissions()
+
+    @action(detail=False, methods=['get'])
+    def me(self, request):
+        """Get current student's profile if they are a student"""
+        if request.user.role != 'student':
+            return Response({'error': 'Not a student'}, status=status.HTTP_403_FORBIDDEN)
         serializer = self.get_serializer(request.user)
         return Response(serializer.data)
